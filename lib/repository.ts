@@ -4,10 +4,15 @@ import { ObjectId, type WithId } from "mongodb"
 import { getArticle, nextIntervalDays, normalizeGerman, reviewPriority } from "@/lib/learning"
 import { getDb } from "@/lib/mongodb"
 import { A1_SEED } from "@/lib/seed"
-import type { ImportResult, ReviewDirection, ReviewEvent, ReviewMode, Statistics, Word } from "@/lib/types"
+import type { Collection, ImportResult, ReviewDirection, ReviewEvent, ReviewMode, Statistics, Word } from "@/lib/types"
 
 type WordDoc = Omit<Word, "id" | "dueAt" | "createdAt" | "lastReviewedAt"> & { dueAt: Date; createdAt: Date; lastReviewedAt?: Date }
 type EventDoc = { wordId: ObjectId; outcome: "correct" | "incorrect"; mode: ReviewMode; direction: ReviewDirection; createdAt: Date }
+type CollectionDoc = { name: string; description: string; wordIds: ObjectId[]; createdAt: Date }
+
+function serializeCollection(doc: WithId<CollectionDoc>): Collection {
+  return { id: doc._id.toHexString(), name: doc.name, description: doc.description, wordIds: doc.wordIds.map((id) => id.toHexString()), createdAt: doc.createdAt.toISOString() }
+}
 
 function serialize(doc: WithId<WordDoc>): Word {
   return {
@@ -32,6 +37,10 @@ async function wordsCollection() {
   const collection = (await getDb()).collection<WordDoc>("words")
   await collection.createIndex({ normalizedGerman: 1 }, { unique: true })
   return collection
+}
+
+async function collectionsCollection() {
+  return (await getDb()).collection<CollectionDoc>("collections")
 }
 
 export async function seedIfEmpty() {
@@ -79,7 +88,50 @@ export async function updateWord(id: string, input: { german: string; russian: s
 
 export async function deleteWord(id: string) {
   if (!ObjectId.isValid(id)) throw new Error("Некорректный идентификатор")
-  await (await wordsCollection()).deleteOne({ _id: new ObjectId(id) })
+  const wordId = new ObjectId(id)
+  await (await wordsCollection()).deleteOne({ _id: wordId })
+  await (await collectionsCollection()).updateMany({}, { $pull: { wordIds: wordId } })
+}
+
+export async function getCollections() {
+  return (await (await collectionsCollection()).find().sort({ createdAt: -1 }).toArray()).map(serializeCollection)
+}
+
+export async function getCollection(id: string) {
+  if (!ObjectId.isValid(id)) return null
+  const collection = await (await collectionsCollection()).findOne({ _id: new ObjectId(id) })
+  return collection ? serializeCollection(collection) : null
+}
+
+export async function getCollectionWords(id: string) {
+  const collection = await getCollection(id)
+  if (!collection) return null
+  const words = await getWords()
+  const position = new Map(collection.wordIds.map((wordId, index) => [wordId, index]))
+  return { collection, words: words.filter((word) => position.has(word.id)).sort((a, b) => position.get(a.id)! - position.get(b.id)!) }
+}
+
+export async function createCollection(input: { name: string; description?: string }) {
+  const name = input.name.trim().replace(/\s+/g, " "), description = input.description?.trim() ?? ""
+  if (!name) throw new Error("Введите название коллекции")
+  const doc: CollectionDoc = { name, description, wordIds: [], createdAt: new Date() }
+  const result = await (await collectionsCollection()).insertOne(doc)
+  return serializeCollection({ ...doc, _id: result.insertedId })
+}
+
+export async function deleteCollection(id: string) {
+  if (!ObjectId.isValid(id)) throw new Error("Некорректный идентификатор")
+  await (await collectionsCollection()).deleteOne({ _id: new ObjectId(id) })
+}
+
+export async function setCollectionWords(id: string, wordIds: string[]) {
+  if (!ObjectId.isValid(id) || !Array.isArray(wordIds) || wordIds.some((wordId) => !ObjectId.isValid(wordId))) throw new Error("Некорректные данные коллекции")
+  const uniqueIds = [...new Set(wordIds)].map((wordId) => new ObjectId(wordId))
+  const existing = await (await wordsCollection()).countDocuments({ _id: { $in: uniqueIds } })
+  if (existing !== uniqueIds.length) throw new Error("Одно из слов не найдено")
+  const result = await (await collectionsCollection()).findOneAndUpdate({ _id: new ObjectId(id) }, { $set: { wordIds: uniqueIds } }, { returnDocument: "after" })
+  if (!result) throw new Error("Коллекция не найдена")
+  return serializeCollection(result)
 }
 
 export async function importWords(items: unknown): Promise<ImportResult> {

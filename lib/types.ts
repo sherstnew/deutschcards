@@ -25,6 +25,14 @@ export type ReviewEvent = {
   direction: ReviewDirection
 }
 
+export type Collection = {
+  id: string
+  name: string
+  description: string
+  wordIds: string[]
+  createdAt: string
+}
+
 export type ImportResult = { added: number; skipped: number; invalid: number }
 
 export type Statistics = {

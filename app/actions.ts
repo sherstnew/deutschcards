@@ -1,10 +1,10 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { createWord, deleteWord, importWords, recordReview, updateWord } from "@/lib/repository"
-import type { ImportResult, ReviewEvent, Word } from "@/lib/types"
+import { createCollection, createWord, deleteCollection, deleteWord, importWords, recordReview, setCollectionWords, updateWord } from "@/lib/repository"
+import type { Collection, ImportResult, ReviewEvent, Word } from "@/lib/types"
 
-const refresh = () => { revalidatePath("/"); revalidatePath("/review"); revalidatePath("/dictionary"); revalidatePath("/statistics") }
+const refresh = () => { revalidatePath("/"); revalidatePath("/review"); revalidatePath("/dictionary"); revalidatePath("/statistics"); revalidatePath("/collections", "layout") }
 
 export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string }
 
@@ -15,6 +15,10 @@ const knownErrors = new Set([
   "Некорректный идентификатор",
   "Некорректное слово",
   "Слово не найдено",
+  "Введите название коллекции",
+  "Некорректные данные коллекции",
+  "Одно из слов не найдено",
+  "Коллекция не найдена",
   "JSON должен быть массивом слов",
 ])
 
@@ -35,3 +39,6 @@ export async function editWord(id: string, input: { german: string; russian: str
 export async function removeWord(id: string): Promise<ActionResult> { return safely(async () => { await deleteWord(id); refresh() }) }
 export async function uploadWords(items: unknown): Promise<ActionResult<ImportResult>> { return safely(async () => { const result = await importWords(items); refresh(); return result }) }
 export async function submitReview(event: ReviewEvent): Promise<ActionResult> { return safely(async () => { await recordReview(event); refresh() }) }
+export async function addCollection(input: { name: string; description?: string }): Promise<ActionResult<Collection>> { return safely(async () => { const collection = await createCollection(input); refresh(); return collection }) }
+export async function removeCollection(id: string): Promise<ActionResult> { return safely(async () => { await deleteCollection(id); refresh() }) }
+export async function saveCollectionWords(id: string, wordIds: string[]): Promise<ActionResult<Collection>> { return safely(async () => { const collection = await setCollectionWords(id, wordIds); refresh(); return collection }) }

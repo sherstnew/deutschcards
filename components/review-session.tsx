@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Check, Eye, Keyboard, RefreshCw, Shuffle, Sparkles } from "lucide-react"
 import { submitReview } from "@/app/actions"
 import { isCorrectAnswer } from "@/lib/learning"
@@ -8,7 +9,7 @@ import type { ReviewDirection, ReviewMode, Word } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-export function ReviewSession({ initialWords }: { initialWords: Word[] }) {
+export function ReviewSession({ initialWords, title = "На сегодня всё", emptyText = "Хорошая работа. Загляните позже — слова сами придут к сроку." }: { initialWords: Word[]; title?: string; emptyText?: string }) {
   const [queue, setQueue] = useState(initialWords)
   const [index, setIndex] = useState(0)
   const [mode, setMode] = useState<ReviewMode | null>(null)
@@ -36,11 +37,11 @@ export function ReviewSession({ initialWords }: { initialWords: Word[] }) {
   function checkTyped() { setResult(isCorrectAnswer(answer, expected!) ? "correct" : "incorrect") }
   function selectOption(option: string) { setAnswer(option); setResult(isCorrectAnswer(option, expected!) ? "correct" : "incorrect") }
 
-  if (!word) return <section className="grid min-h-96 place-items-center rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-stone-200"><div><Sparkles className="mx-auto mb-4 text-lime-600" size={36}/><h1 className="text-2xl font-semibold">На сегодня всё</h1><p className="mt-2 text-stone-500">Хорошая работа. Загляните позже — слова сами придут к сроку.</p></div></section>
+  if (!word) return <section className="grid min-h-96 place-items-center rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-stone-200"><div><Sparkles className="mx-auto mb-4 text-lime-600" size={36}/><h1 className="text-2xl font-semibold">{title}</h1><p className="mt-2 text-stone-500">{emptyText}</p></div></section>
   return <section className="mx-auto max-w-2xl">
-    <div className="mb-6 flex items-center justify-between text-sm text-stone-500"><span>Карточка {index + 1}</span><span className="rounded-full bg-lime-100 px-3 py-1 font-medium text-lime-800">{direction === "de-ru" ? "Deutsch → Русский" : "Русский → Deutsch"}</span></div>
+    <div className="mb-6 flex items-center justify-between text-sm text-stone-500"><span>Карточка {index + 1}</span><Link href="/articles" className="rounded-full bg-lime-100 px-3 py-1 font-medium text-lime-800 transition hover:bg-lime-200">Артикли</Link></div>
     <article className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-stone-200">
-      <div className={cn("p-6 sm:min-h-[34rem] sm:p-10", !mode && "min-h-[31rem]")}><p className="text-sm font-medium uppercase tracking-widest text-stone-400">Что это значит?</p><h1 className="mt-7 break-words text-4xl font-semibold tracking-tight sm:text-6xl">{prompt}</h1>
+      <div className={cn("p-6 sm:min-h-[34rem] sm:p-10", !mode && "min-h-[31rem]")}><h1 className="break-words text-4xl font-semibold tracking-tight sm:text-6xl">{prompt}</h1>
         {!mode ? <div className="mt-12 grid gap-3"><p className="text-sm text-stone-500">Как хотите ответить?</p><ModeButton icon={Eye} title="Открыть перевод" text="Оценю себя сам" onClick={() => setMode("reveal")}/><ModeButton icon={Keyboard} title="Написать ответ" text="Проверка совпадения" onClick={() => setMode("type")}/><ModeButton icon={Shuffle} title="Выбрать из 4" text="Быстрая проверка" onClick={() => setMode("choice")}/></div> : null}
         {mode === "reveal" ? <div className="mt-10 rounded-2xl bg-lime-50 p-5"><p className="text-xs font-semibold uppercase tracking-wider text-lime-700">Перевод</p><p className="mt-2 text-2xl font-medium">{expected}</p></div> : null}
         {mode === "type" ? <div className="mt-10"><input autoFocus value={answer} onChange={(event) => { setAnswer(event.target.value); setResult(null) }} onKeyDown={(event) => event.key === "Enter" && answer && checkTyped()} placeholder="Введите ответ" className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-5 py-4 text-lg outline-none transition focus:border-lime-500 focus:ring-4 focus:ring-lime-100"/>{!result ? <Button disabled={!answer} onClick={checkTyped} className="mt-3 w-full">Проверить</Button> : <Feedback result={result} expected={expected!}/>}</div> : null}

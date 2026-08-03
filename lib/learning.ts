@@ -11,7 +11,8 @@ export function normalizeAnswer(value: string) {
 }
 
 export function isCorrectAnswer(answer: string, expected: string) {
-  return normalizeAnswer(answer) === normalizeAnswer(expected)
+  const normalizedAnswer = normalizeAnswer(answer)
+  return expected.split(";").some((variant) => normalizeAnswer(variant) === normalizedAnswer)
 }
 
 export function getArticle(german: string, article?: Word["article"]) {

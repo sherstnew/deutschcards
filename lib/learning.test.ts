@@ -5,6 +5,9 @@ describe("German word normalization", () => {
   it("ignores case, Unicode form, and redundant whitespace", () => {
     expect(normalizeGerman("  STRAẞE   ")).toBe("straße")
     expect(isCorrectAnswer("  Haus ", "haus")).toBe(true)
+    expect(isCorrectAnswer("жилище", "дом; жилище")).toBe(true)
+    expect(isCorrectAnswer("DER TISCH", "der Tisch; Tisch")).toBe(true)
+    expect(isCorrectAnswer("квартира", "дом; жилище")).toBe(false)
   })
 
   it("keeps German diacritics significant", () => {

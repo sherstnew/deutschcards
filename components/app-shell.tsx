@@ -2,12 +2,12 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, BookOpen, GraduationCap, Puzzle } from "lucide-react"
+import { BarChart3, BookOpen, GraduationCap, Layers3 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const links = [
   { href: "/review", label: "Повторение", icon: GraduationCap },
-  { href: "/articles", label: "Артикли", icon: Puzzle },
+  { href: "/collections", label: "Коллекции", icon: Layers3 },
   { href: "/dictionary", label: "Словарь", icon: BookOpen },
   { href: "/statistics", label: "Статистика", icon: BarChart3 },
 ]
