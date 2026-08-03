@@ -14,6 +14,7 @@ export function ReviewSession({ initialWords }: { initialWords: Word[] }) {
   const [mode, setMode] = useState<ReviewMode | null>(null)
   const [answer, setAnswer] = useState("")
   const [result, setResult] = useState<"correct" | "incorrect" | null>(null)
+  const [actionError, setActionError] = useState("")
   const word = queue[index]
   const direction: ReviewDirection = index % 2 === 0 ? "de-ru" : "ru-de"
   const prompt = word && direction === "de-ru" ? word.german : word?.russian
@@ -23,10 +24,12 @@ export function ReviewSession({ initialWords }: { initialWords: Word[] }) {
   const answerPosition = word ? index % (uniqueDistractors.length + 1) : 0
   const options = word ? [...uniqueDistractors.slice(0, answerPosition), expected!, ...uniqueDistractors.slice(answerPosition)] : []
 
-  function reset() { setMode(null); setAnswer(""); setResult(null) }
+  function reset() { setMode(null); setAnswer(""); setResult(null); setActionError("") }
   async function move(outcome: "correct" | "incorrect") {
     if (!word || !mode) return
-    await submitReview({ wordId: word.id, outcome, mode, direction })
+    setActionError("")
+    const response = await submitReview({ wordId: word.id, outcome, mode, direction })
+    if (!response.ok) { setActionError(response.error); return }
     if (outcome === "incorrect") setQueue((items) => [...items.slice(0, index + 5), word, ...items.slice(index + 5)])
     setIndex((value) => value + 1); reset()
   }
@@ -37,13 +40,13 @@ export function ReviewSession({ initialWords }: { initialWords: Word[] }) {
   return <section className="mx-auto max-w-2xl">
     <div className="mb-6 flex items-center justify-between text-sm text-stone-500"><span>Карточка {index + 1}</span><span className="rounded-full bg-lime-100 px-3 py-1 font-medium text-lime-800">{direction === "de-ru" ? "Deutsch → Русский" : "Русский → Deutsch"}</span></div>
     <article className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-stone-200">
-      <div className="min-h-[31rem] p-6 sm:min-h-[34rem] sm:p-10"><p className="text-sm font-medium uppercase tracking-widest text-stone-400">Что это значит?</p><h1 className="mt-7 break-words text-4xl font-semibold tracking-tight sm:text-6xl">{prompt}</h1>
+      <div className={cn("p-6 sm:min-h-[34rem] sm:p-10", !mode && "min-h-[31rem]")}><p className="text-sm font-medium uppercase tracking-widest text-stone-400">Что это значит?</p><h1 className="mt-7 break-words text-4xl font-semibold tracking-tight sm:text-6xl">{prompt}</h1>
         {!mode ? <div className="mt-12 grid gap-3"><p className="text-sm text-stone-500">Как хотите ответить?</p><ModeButton icon={Eye} title="Открыть перевод" text="Оценю себя сам" onClick={() => setMode("reveal")}/><ModeButton icon={Keyboard} title="Написать ответ" text="Проверка совпадения" onClick={() => setMode("type")}/><ModeButton icon={Shuffle} title="Выбрать из 4" text="Быстрая проверка" onClick={() => setMode("choice")}/></div> : null}
         {mode === "reveal" ? <div className="mt-10 rounded-2xl bg-lime-50 p-5"><p className="text-xs font-semibold uppercase tracking-wider text-lime-700">Перевод</p><p className="mt-2 text-2xl font-medium">{expected}</p></div> : null}
         {mode === "type" ? <div className="mt-10"><input autoFocus value={answer} onChange={(event) => { setAnswer(event.target.value); setResult(null) }} onKeyDown={(event) => event.key === "Enter" && answer && checkTyped()} placeholder="Введите ответ" className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-5 py-4 text-lg outline-none transition focus:border-lime-500 focus:ring-4 focus:ring-lime-100"/>{!result ? <Button disabled={!answer} onClick={checkTyped} className="mt-3 w-full">Проверить</Button> : <Feedback result={result} expected={expected!}/>}</div> : null}
         {mode === "choice" ? <div className="mt-10 grid gap-3">{options.map((option) => <button key={option} disabled={!!result} onClick={() => selectOption(option)} className={cn("rounded-2xl border px-5 py-4 text-left font-medium transition", result && option === expected ? "border-lime-500 bg-lime-50" : result && option === answer ? "border-red-300 bg-red-50" : "border-stone-200 hover:border-lime-400 hover:bg-lime-50")}>{option}</button>)}{result && <Feedback result={result} expected={expected!}/>}</div> : null}
       </div>
-      {mode && (mode === "reveal" || result) ? <footer className="grid gap-3 border-t border-stone-100 bg-stone-50 p-4 sm:grid-cols-2"><Button disabled={result === "incorrect"} onClick={() => move("correct")} className="h-12 bg-lime-400 text-stone-950 hover:bg-lime-500"><Check/>Я изучил слово</Button><Button variant="outline" onClick={() => move("incorrect")} className="h-12"><RefreshCw/>Повторить ещё</Button></footer> : null}
+      {mode && (mode === "reveal" || result) ? <footer className="grid gap-3 border-t border-stone-100 bg-stone-50 p-4 sm:grid-cols-2">{actionError && <div className="rounded-xl bg-red-50 p-4 text-sm text-red-800 sm:col-span-2" role="alert">{actionError}</div>}<Button disabled={result === "incorrect"} onClick={() => move("correct")} className="h-12"><Check/>Я изучил слово</Button><Button variant="outline" onClick={() => move("incorrect")} className="h-12"><RefreshCw/>Повторить ещё</Button></footer> : null}
     </article>
   </section>
 }
