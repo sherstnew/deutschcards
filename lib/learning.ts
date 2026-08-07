@@ -25,6 +25,15 @@ export function withoutArticle(german: string) {
   return german.trim().replace(/^(der|die|das)\s+/i, "")
 }
 
+export function shuffle<T>(items: readonly T[], random: () => number = Math.random) {
+  const shuffled = [...items]
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    const target = Math.floor(random() * (index + 1))
+    ;[shuffled[index], shuffled[target]] = [shuffled[target], shuffled[index]]
+  }
+  return shuffled
+}
+
 export function reviewPriority(word: Word, now = new Date()) {
   const due = new Date(word.dueAt).getTime()
   const overdueDays = Math.max(0, (now.getTime() - due) / 86_400_000)

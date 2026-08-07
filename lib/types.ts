@@ -15,6 +15,13 @@ export type Word = {
   lastReviewedAt?: string
 }
 
+export type WordInput = {
+  german: string
+  russian: string
+  notes?: string
+  article?: Word["article"] | null
+}
+
 export type ReviewMode = "reveal" | "type" | "choice" | "article"
 export type ReviewDirection = "de-ru" | "ru-de"
 

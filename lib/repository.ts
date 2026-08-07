@@ -1,10 +1,10 @@
 import "server-only"
 
 import { ObjectId, type WithId } from "mongodb"
-import { getArticle, nextIntervalDays, normalizeGerman, reviewPriority } from "@/lib/learning"
+import { getArticle, nextIntervalDays, normalizeGerman, reviewPriority, withoutArticle } from "@/lib/learning"
 import { getDb } from "@/lib/mongodb"
 import { A1_SEED } from "@/lib/seed"
-import type { Collection, ImportResult, ReviewDirection, ReviewEvent, ReviewMode, Statistics, Word } from "@/lib/types"
+import type { Collection, ImportResult, ReviewDirection, ReviewEvent, ReviewMode, Statistics, Word, WordInput } from "@/lib/types"
 
 type WordDoc = Omit<Word, "id" | "dueAt" | "createdAt" | "lastReviewedAt"> & { dueAt: Date; createdAt: Date; lastReviewedAt?: Date }
 type EventDoc = { wordId: ObjectId; outcome: "correct" | "incorrect"; mode: ReviewMode; direction: ReviewDirection; createdAt: Date }
@@ -61,26 +61,31 @@ export async function getReviewQueue() {
   return words.sort((a, b) => reviewPriority(b, now) - reviewPriority(a, now)).slice(0, 24)
 }
 
-export async function createWord(input: { german: string; russian: string; notes?: string; article?: Word["article"] }) {
-  const german = input.german.trim().replace(/\s+/g, " ")
+export async function createWord(input: WordInput) {
+  const rawGerman = input.german.trim().replace(/\s+/g, " ")
+  const german = input.article === null ? withoutArticle(rawGerman) : rawGerman
   const russian = input.russian.trim().replace(/\s+/g, " ")
   if (!german || !russian) throw new Error("Заполните немецкое слово и перевод")
   const now = new Date()
   const notes = input.notes?.trim()
-  const article = getArticle(german, input.article)
+  const article = input.article === null ? undefined : getArticle(german, input.article)
   const doc = { german, russian, ...(notes ? { notes } : {}), ...(article ? { article } : {}), normalizedGerman: normalizeGerman(german), createdAt: now, repetitions: 0, correctCount: 0, incorrectCount: 0, consecutiveCorrect: 0, intervalDays: 0, dueAt: now }
   try { const result = await (await wordsCollection()).insertOne(doc); return serialize({ ...doc, _id: result.insertedId }) }
   catch (error) { if ((error as { code?: number }).code === 11000) throw new Error("Такое немецкое слово уже есть в словаре"); throw error }
 }
 
-export async function updateWord(id: string, input: { german: string; russian: string; notes?: string; article?: Word["article"] }) {
-  const german = input.german.trim().replace(/\s+/g, " ")
+export async function updateWord(id: string, input: WordInput) {
+  const rawGerman = input.german.trim().replace(/\s+/g, " ")
+  const german = input.article === null ? withoutArticle(rawGerman) : rawGerman
   const russian = input.russian.trim().replace(/\s+/g, " ")
   if (!ObjectId.isValid(id) || !german || !russian) throw new Error("Некорректные данные слова")
   try {
     const notes = input.notes?.trim()
-    const article = getArticle(german, input.article)
-    const result = await (await wordsCollection()).findOneAndUpdate({ _id: new ObjectId(id) }, { $set: { german, russian, notes: notes || undefined, article, normalizedGerman: normalizeGerman(german) } }, { returnDocument: "after" })
+    const article = input.article === null ? undefined : getArticle(german, input.article)
+    const update = article
+      ? { $set: { german, russian, notes: notes || undefined, article, normalizedGerman: normalizeGerman(german) } }
+      : { $set: { german, russian, notes: notes || undefined, normalizedGerman: normalizeGerman(german) }, $unset: { article: "" as const } }
+    const result = await (await wordsCollection()).findOneAndUpdate({ _id: new ObjectId(id) }, update, { returnDocument: "after" })
     if (!result) throw new Error("Слово не найдено")
     return serialize(result)
   } catch (error) { if ((error as { code?: number }).code === 11000) throw new Error("Такое немецкое слово уже есть в словаре"); throw error }

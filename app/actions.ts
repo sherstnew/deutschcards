@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createCollection, createWord, deleteCollection, deleteWord, importWords, recordReview, setCollectionWords, updateWord } from "@/lib/repository"
-import type { Collection, ImportResult, ReviewEvent, Word } from "@/lib/types"
+import type { Collection, ImportResult, ReviewEvent, Word, WordInput } from "@/lib/types"
 
 const refresh = () => { revalidatePath("/"); revalidatePath("/review"); revalidatePath("/dictionary"); revalidatePath("/statistics"); revalidatePath("/collections", "layout") }
 
@@ -34,8 +34,8 @@ async function safely<T>(operation: () => Promise<T>): Promise<ActionResult<T>> 
   }
 }
 
-export async function addWord(input: { german: string; russian: string; notes?: string; article?: "der" | "die" | "das" }): Promise<ActionResult<Word>> { return safely(async () => { const word = await createWord(input); refresh(); return word }) }
-export async function editWord(id: string, input: { german: string; russian: string; notes?: string; article?: "der" | "die" | "das" }): Promise<ActionResult<Word>> { return safely(async () => { const word = await updateWord(id, input); refresh(); return word }) }
+export async function addWord(input: WordInput): Promise<ActionResult<Word>> { return safely(async () => { const word = await createWord(input); refresh(); return word }) }
+export async function editWord(id: string, input: WordInput): Promise<ActionResult<Word>> { return safely(async () => { const word = await updateWord(id, input); refresh(); return word }) }
 export async function removeWord(id: string): Promise<ActionResult> { return safely(async () => { await deleteWord(id); refresh() }) }
 export async function uploadWords(items: unknown): Promise<ActionResult<ImportResult>> { return safely(async () => { const result = await importWords(items); refresh(); return result }) }
 export async function submitReview(event: ReviewEvent): Promise<ActionResult> { return safely(async () => { await recordReview(event); refresh() }) }
