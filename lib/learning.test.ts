@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest"
-import { getArticle, isCorrectAnswer, nextIntervalDays, normalizeGerman, shuffle, withoutArticle } from "./learning"
+import {
+  formatGerman,
+  getArticle,
+  isCorrectAnswer,
+  isCorrectGermanAnswer,
+  nextIntervalDays,
+  normalizeGerman,
+  shuffle,
+  withoutArticle,
+} from "./learning"
 
 describe("German word normalization", () => {
   it("ignores case, Unicode form, and redundant whitespace", () => {
     expect(normalizeGerman("  STRAẞE   ")).toBe("straße")
     expect(isCorrectAnswer("  Haus ", "haus")).toBe(true)
     expect(isCorrectAnswer("жилище", "дом; жилище")).toBe(true)
+    expect(isCorrectAnswer("дом; жилище", "дом; жилище")).toBe(true)
     expect(isCorrectAnswer("DER TISCH", "der Tisch; Tisch")).toBe(true)
     expect(isCorrectAnswer("квартира", "дом; жилище")).toBe(false)
   })
@@ -18,7 +28,9 @@ describe("German word normalization", () => {
 
 describe("spaced repetition intervals", () => {
   it("moves successful reviews through fixed intervals and caps them", () => {
-    expect([1, 2, 3, 4, 5, 6, 7].map(nextIntervalDays)).toEqual([1, 3, 7, 14, 30, 60, 60])
+    expect([1, 2, 3, 4, 5, 6, 7].map(nextIntervalDays)).toEqual([
+      1, 3, 7, 14, 30, 60, 60,
+    ])
   })
 })
 
@@ -32,6 +44,20 @@ describe("article handling", () => {
     expect(getArticle("das Haus")).toBe("das")
     expect(getArticle("Haus", "der")).toBe("der")
     expect(getArticle("Haus")).toBeUndefined()
+  })
+
+  it("formats German words without duplicating their article", () => {
+    expect(formatGerman("Tisch", "der")).toBe("der Tisch")
+    expect(formatGerman("der Tisch", "der")).toBe("der Tisch")
+    expect(formatGerman("lernen")).toBe("lernen")
+  })
+
+  it("allows an optional article unless the card explicitly requires it", () => {
+    expect(isCorrectGermanAnswer("Tisch", "Tisch", "der")).toBe(true)
+    expect(isCorrectGermanAnswer("DER TISCH", "Tisch", "der")).toBe(true)
+    expect(isCorrectGermanAnswer("die Tisch", "Tisch", "der")).toBe(false)
+    expect(isCorrectGermanAnswer("Tisch", "Tisch", "der", true)).toBe(false)
+    expect(isCorrectGermanAnswer("der Tisch", "Tisch", "der", true)).toBe(true)
   })
 })
 
